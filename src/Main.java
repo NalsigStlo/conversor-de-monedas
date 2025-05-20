@@ -1,22 +1,51 @@
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
 import java.util.Scanner;
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+
+import records.CoinValue;
+import records.ConversionRates;
+
+import Modelos.ConexionApi;
+import Modelos.Rates;
 
 public class Main {
     public static void main(String[] args) {
         Scanner inputUsuario = new Scanner(System.in);
+        ConexionApi api = new ConexionApi();
+        Gson gson = new GsonBuilder().setPrettyPrinting().create();
 
-        System.out.println(" Ingrese la moneda que desee verificar: ");
+        while(true){
+            Menu.mostrarMenu();
+            String monedaPrincipal = inputUsuario.nextLine();
 
-        String codigoMoneda = inputUsuario.nextLine();
+            if (monedaPrincipal.equalsIgnoreCase("7")) {
+                break;
+            }
 
-        ConexionApi api = new ConexionApi(codigoMoneda);
+            Menu.mostrarMenuSecundario(monedaPrincipal);
+            String monedaSecundaria = inputUsuario.nextLine();
 
-        HttpClient cliente = HttpClient.newHttpClient();
-        URI direccionApi = URI.create("https://v6.exchangerate-api.com/v6/63de5af194132dbe47c83375/latest/" + api.getCodigoMoneda());
+            String response = api.apiResponse(monedaPrincipal);
+            ConversionRates rates = gson.fromJson(response, ConversionRates.class);
 
-        HttpRequest request = HttpRequest.newBuilder().uri(direccionApi).build();
+            if (rates.result().equalsIgnoreCase("error")) {
+                System.out.println("Ocurrió un error al obtener los datos de la API, vuelva a intentar");
+                break;
+            }
 
+            String valueToJson = Rates.ratesToJson(gson, rates);
+            CoinValue coins = gson.fromJson(valueToJson, CoinValue.class);
+            Rates miRates = new Rates(coins);
+
+            System.out.println("Ingrese el monto que quiere convertir");
+            float monto = Float.parseFloat(inputUsuario.nextLine());
+
+            if (Integer.parseInt(monedaSecundaria) < Integer.parseInt(monedaPrincipal)){
+                miRates.calculateConversion((Integer.parseInt(monedaPrincipal) - 1), (Integer.parseInt(monedaSecundaria) - 1), monto);
+            } else {
+                miRates.calculateConversion((Integer.parseInt(monedaPrincipal) - 1), Integer.parseInt(monedaSecundaria), monto);
+            }
+        }
     }
 }
